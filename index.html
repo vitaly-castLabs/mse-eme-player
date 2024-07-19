@@ -20,16 +20,24 @@
             </tr>
             <tr>
                 <td style="text-align:right">Key:</td>
-                <td style="text-align:left"><input id="key" size="37" value="3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c"></td>
+                <td style="text-align:left"><input id="key" size="42" value="3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c"></td>
                 <td></td>
             </tr>
             <tr>
                 <td style="text-align:right">MIME:</td>
-                <td style="text-align:left"><input id="media-type" size="37" value='video/mp4;codecs="avc1.42c015"'></td>
+                <td style="text-align:left"><input id="media-type" size="42" value='video/mp4;codecs="avc1.64001f"'></td>
                 <td><a href="https://gpac.github.io/mp4box.js/test/filereader.html" target="_blank" rel="noopener noreferrer">Find out here</a></td>
             </tr>
-        </table>
+            <td></td>
+                <td style="text-align:left">(video/mp4;codecs="avc1.64001f,mp4a.40.2"<br>should work for any fmp4 with audio)</td>
+            <td></td>
+    </table>
     </div>
+    <br>
+    <div>
+        <a href="https://github.com/vitaly-castLabs/mse-eme-player" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </div>
+    <br>
     <div id="video-div" style="display:none">
         <video id="video" controls autoplay></video>
     <div>
@@ -68,16 +76,25 @@
                 const response = await fetch(url);
                 const arrayBuffer = await response.arrayBuffer();
 
-                sourceBuffer.appendBuffer(arrayBuffer);
+                sourceBuffer.addEventListener('error', (event) => console.error('Source buffer error:', event));
                 sourceBuffer.addEventListener('updateend', () => {
                     if (mediaSource.readyState === 'open')
                         mediaSource.endOfStream();
                     else
                         alert('Failed to load media (incompatible format or wrong MIME)');
                 });
+
+                try {
+                    sourceBuffer.appendBuffer(arrayBuffer);
+                }
+                catch (error) {
+                    console.error('Append buffer exception:', error);
+                }
             });
 
             video.addEventListener('encrypted', (event) => {
+                console.log('Encrypted!');
+
                 const initData = event.initData;
                 const keySystem = 'org.w3.clearkey';
                 const config = [{
