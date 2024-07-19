@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>(Encrypted) Video Player</title>
+    <style>
+        * {
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="input-params" style="display:block">
+        <table>
+            <tr>
+                <td></td>
+                <td style="text-align:left"><input type="file" id="fileInput" accept="video/mp4"></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td style="text-align:right">Key:</td>
+                <td style="text-align:left"><input id="key" size="37" value="3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c"></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td style="text-align:right">MIME:</td>
+                <td style="text-align:left"><input id="media-type" size="37" value='video/mp4;codecs="avc1.42c015"'></td>
+                <td><a href="https://gpac.github.io/mp4box.js/test/filereader.html" target="_blank" rel="noopener noreferrer">Find out here</a></td>
+            </tr>
+        </table>
+    </div>
+    <div id="video-div" style="display:none">
+        <video id="video" controls autoplay></video>
+    <div>
+
+    <script>
+        function hexTobase64(hexString) {
+            const u8arr = new Uint8Array(hexString.match(/[\da-f]{2}/gi).map(h => parseInt(h, 16)));
+            return btoa(String.fromCharCode.apply(null, u8arr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=*$/, '');
+        }
+
+        const video = document.getElementById('video');
+        video.addEventListener('resize', () => console.log(`Resolution: ${video.videoWidth}x${video.videoHeight}`), false);
+
+        const fileInput = document.getElementById('fileInput');
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const fileURL = URL.createObjectURL(file);
+                await playVideo(fileURL);
+            }
+        });
+
+        async function playVideo(url) {
+            document.getElementById('input-params').style.display = 'none';
+            document.getElementById('video-div').style.display = 'block';
+
+            const mediaType = document.getElementById('media-type').value;
+            const key = hexTobase64(document.getElementById('key').value);
+
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+
+            mediaSource.addEventListener('sourceopen', async () => {
+                const sourceBuffer = mediaSource.addSourceBuffer(mediaType);
+
+                const response = await fetch(url);
+                const arrayBuffer = await response.arrayBuffer();
+
+                sourceBuffer.appendBuffer(arrayBuffer);
+                sourceBuffer.addEventListener('updateend', () => {
+                    if (mediaSource.readyState === 'open')
+                        mediaSource.endOfStream();
+                    else
+                        alert('Failed to load media (incompatible format or wrong MIME)');
+                });
+            });
+
+            video.addEventListener('encrypted', (event) => {
+                const initData = event.initData;
+                const keySystem = 'org.w3.clearkey';
+                const config = [{
+                    initDataTypes: ['cenc'],
+                    videoCapabilities: [{
+                        contentType: mediaType
+                    }]
+                }];
+
+                navigator.requestMediaKeySystemAccess(keySystem, config).then((keySystemAccess) => {
+                    return keySystemAccess.createMediaKeys();
+                }).then((mediaKeys) => {
+                    return video.setMediaKeys(mediaKeys);
+                }).then(() => {
+                    const keySession = video.mediaKeys.createSession();
+                    keySession.addEventListener('message', (event) => {
+                        const request = JSON.parse(new TextDecoder().decode(event.message));
+                        const license = {
+                            keys: [{
+                                kty: 'oct',
+                                alg: 'A128KW',
+                                kid: request.kids[0],
+                                k: key
+                            }]
+                        };
+                        const licenseBuffer = new TextEncoder().encode(JSON.stringify(license));
+                        keySession.update(licenseBuffer);
+                    });
+                    keySession.generateRequest(event.initDataType, initData);
+                }).catch((error) => {
+                    console.error('Failed to initialize ClearKey DRM:', error);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
