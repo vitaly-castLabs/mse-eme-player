@@ -14,13 +14,13 @@
     <div id="input-params" style="display:block">
         <table>
             <tr>
-                <td></td>
-                <td style="text-align:left"><input type="file" id="fileInput" accept="video/mp4"></td>
+                <td style="text-align:right">Key:</td>
+                <td style="text-align:left"><input id="key" size="42" value="3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c"></td>
                 <td></td>
             </tr>
             <tr>
-                <td style="text-align:right">Key:</td>
-                <td style="text-align:left"><input id="key" size="42" value="3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c"></td>
+                <td></td>
+                <td style="text-align:left">(remove the key if not encrypted)</td>
                 <td></td>
             </tr>
             <tr>
@@ -28,10 +28,14 @@
                 <td style="text-align:left"><input id="media-type" size="42" value='video/mp4;codecs="avc1.64001f"'></td>
                 <td><a href="https://gpac.github.io/mp4box.js/test/filereader.html" target="_blank" rel="noopener noreferrer">Find out here</a></td>
             </tr>
-            <td></td>
-                <td style="text-align:left">(video/mp4;codecs="avc1.64001f,mp4a.40.2"<br>should work for any fmp4 with audio)</td>
-            <td></td>
-    </table>
+            <tr>
+                <td></td>
+                <td style="text-align:left">(video/mp4;codecs="avc1.64001f,mp4a.40.2"<br>should work for fmp4 with AVC video and audio<br>video/mp4;codecs="av01.0.04M.08"<br>should be good for any AV1)</td>
+                <td></td>
+            </tr>
+        </table>
+        <br>
+        <input type="file" id="fileInput" accept="video/mp4">
     </div>
     <br>
     <div>
@@ -44,8 +48,12 @@
 
     <script>
         function hexTobase64(hexString) {
-            const u8arr = new Uint8Array(hexString.match(/[\da-f]{2}/gi).map(h => parseInt(h, 16)));
-            return btoa(String.fromCharCode.apply(null, u8arr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=*$/, '');
+            try {
+                const u8arr = new Uint8Array(hexString.match(/[\da-f]{2}/gi).map(h => parseInt(h, 16)));
+                return btoa(String.fromCharCode.apply(null, u8arr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=*$/, '');
+            }
+            catch {}
+            return ''   // treat as not encrypted (aka clear)
         }
 
         const video = document.getElementById('video');
